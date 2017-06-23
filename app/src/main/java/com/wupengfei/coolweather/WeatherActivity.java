@@ -6,10 +6,14 @@ import android.graphics.Color;
 import android.os.Build;
 import android.preference.Preference;
 import android.preference.PreferenceManager;
+import android.support.v4.view.GravityCompat;
+import android.support.v4.widget.DrawerLayout;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -44,7 +48,9 @@ public class WeatherActivity extends AppCompatActivity {
     private TextView tv_comfort;
     private TextView tv_carWash;
     private TextView tv_sport;
-
+    public SwipeRefreshLayout srl_weather;
+    public DrawerLayout dl_weather;
+    private Button btn_home;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,6 +74,11 @@ public class WeatherActivity extends AppCompatActivity {
         tv_comfort = (TextView) findViewById(R.id.tv_comfort);
         tv_carWash = (TextView) findViewById(R.id.tv_carWash);
         tv_sport = (TextView) findViewById(R.id.tv_sport);
+        srl_weather = (SwipeRefreshLayout) findViewById(R.id.srl_weather);
+        dl_weather = (DrawerLayout) findViewById(R.id.dl_weather);
+        btn_home = (Button) findViewById(R.id.btn_home);
+
+        srl_weather.setColorSchemeResources(R.color.colorPrimary);
 
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
         String bingPic = sharedPreferences.getString("bingPic", null);
@@ -76,18 +87,33 @@ public class WeatherActivity extends AppCompatActivity {
         } else {
             loadBingPic();
         }
-
+        final String weatherId;
         String weatherString = sharedPreferences.getString("weather", null);
         if (weatherString != null) {
             //有缓存时直接解析天气数据
             Weather.HeWeatherBean weather = Utility.handleWeatherResponse(weatherString);
+            weatherId = weather.getBasic().getId();
             showWeatherInfo(weather);
         } else {
             //获取服务器最新数据
-            String weatherId = getIntent().getStringExtra("weather_id");
+            weatherId = getIntent().getStringExtra("weather_id");
             sv_weather.setVisibility(View.INVISIBLE);
             requestWeather(weatherId);
         }
+
+        srl_weather.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+            @Override
+            public void onRefresh() {
+                requestWeather(weatherId);
+            }
+        });
+
+        btn_home.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dl_weather.openDrawer(GravityCompat.START);
+            }
+        });
     }
 
     /**
@@ -123,7 +149,7 @@ public class WeatherActivity extends AppCompatActivity {
      *
      * @param weatherId
      */
-    private void requestWeather(final String weatherId) {
+    public void requestWeather(final String weatherId) {
 //        String weatherUrl = "https://free-api.heweather.com/v5/forecast?cityid=" + weatherId + "&key=1f48091bc58843fcbc63b2855f545226";
         String weatherUrl = "http://guolin.tech/api/weather?cityid=" + weatherId + "&key=1f48091bc58843fcbc63b2855f545226";
         HttpUtil.sendOkHttpRequest(weatherUrl, new Callback() {
@@ -133,6 +159,7 @@ public class WeatherActivity extends AppCompatActivity {
                     @Override
                     public void run() {
                         Toast.makeText(getApplicationContext(), "天气数据获取失败，请稍后再试！", Toast.LENGTH_SHORT).show();
+                        srl_weather.setRefreshing(false);
                     }
                 });
             }
@@ -152,6 +179,7 @@ public class WeatherActivity extends AppCompatActivity {
                         } else {
                             Toast.makeText(getApplicationContext(), "天气数据获取失败，请稍后再试！", Toast.LENGTH_SHORT).show();
                         }
+                        srl_weather.setRefreshing(false);
                     }
                 });
             }
@@ -183,9 +211,10 @@ public class WeatherActivity extends AppCompatActivity {
             tv_max.setText("↑：" + weather.getDaily_forecast().get(i).getTmp().getMax());
             forecast_layout.addView(view);
         }
-
-        tv_aqi.setText(weather.getAqi().getCity().getAqi());
-        tv_pm.setText(weather.getAqi().getCity().getPm25());
+        if (weather.getAqi() != null) {
+            tv_aqi.setText(weather.getAqi().getCity().getAqi());
+            tv_pm.setText(weather.getAqi().getCity().getPm25());
+        }
         tv_comfort.setText("舒适度：" + weather.getSuggestion().getComf().getBrf() + "\n\n" + weather.getSuggestion().getComf().getTxt());
         tv_carWash.setText("洗车指数：" + weather.getSuggestion().getCw().getBrf() + "\n\n" + weather.getSuggestion().getCw().getTxt());
         tv_sport.setText("运动建议：" + weather.getSuggestion().getSport().getBrf() + "\n\n" + weather.getSuggestion().getSport().getTxt());
