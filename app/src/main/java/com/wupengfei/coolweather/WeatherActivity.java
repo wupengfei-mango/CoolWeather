@@ -1,5 +1,6 @@
 package com.wupengfei.coolweather;
 
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ShortcutManager;
 import android.graphics.Color;
@@ -23,6 +24,7 @@ import android.widget.Toast;
 import com.bumptech.glide.Glide;
 import com.google.gson.annotations.Until;
 import com.wupengfei.coolweather.gson.Weather;
+import com.wupengfei.coolweather.service.AutoUpdateService;
 import com.wupengfei.coolweather.util.HttpUtil;
 import com.wupengfei.coolweather.util.Utility;
 
@@ -176,6 +178,8 @@ public class WeatherActivity extends AppCompatActivity {
                             editor.putString("weather", responseText);
                             editor.apply();
                             showWeatherInfo(weather);
+                            Intent intent = new Intent(getApplicationContext(), AutoUpdateService.class);
+                            startService(intent);
                         } else {
                             Toast.makeText(getApplicationContext(), "天气数据获取失败，请稍后再试！", Toast.LENGTH_SHORT).show();
                         }
